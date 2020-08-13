@@ -41,11 +41,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.GenericMessage;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import static org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration.HttpRequestFunction;
 
@@ -57,18 +55,6 @@ public class ImageThumbnailDemoApplication {
 	public static void main(String[] args) {
 
 		SpringApplication.run(ImageThumbnailDemoApplication.class);
-	}
-
-	@Configuration
-	static class WebClientConfiguration {
-		@Bean
-		public WebClient myWebClient() {
-			return WebClient.builder()
-					.codecs(clientCodecConfigurer -> {
-						clientCodecConfigurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024);
-					})
-					.build();
-		}
 	}
 
 	@Bean
