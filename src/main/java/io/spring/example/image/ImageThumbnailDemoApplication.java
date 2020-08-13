@@ -56,9 +56,7 @@ public class ImageThumbnailDemoApplication {
 
 	public static void main(String[] args) {
 
-		SpringApplication.run(ImageThumbnailDemoApplication.class,
-				"--http.request.url-expression=payload",
-				"--http.request.expected-response-type=byte[]");
+		SpringApplication.run(ImageThumbnailDemoApplication.class);
 	}
 
 	@Configuration
@@ -120,7 +118,8 @@ public class ImageThumbnailDemoApplication {
 
 			Iterator iter = ImageIO.getImageReaders(iis);
 			if (!iter.hasNext()) {
-				return;
+				logger.error("Unable to find an image reader");
+				throw new RuntimeException("Image content is invalid.");
 			}
 
 			ImageReader reader = (ImageReader) iter.next();
