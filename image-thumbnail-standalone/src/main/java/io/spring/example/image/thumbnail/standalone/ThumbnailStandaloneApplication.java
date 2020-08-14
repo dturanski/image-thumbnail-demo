@@ -14,23 +14,16 @@
  * limitations under the License.
  */
 
-package io.spring.example.image;
+package io.spring.example.image.thumbnail.standalone;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReadParam;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
-
+import io.spring.example.image.thumbnail.processor.ThumbnailProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -45,22 +38,19 @@ import org.springframework.context.annotation.Import;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.GenericMessage;
 
-import static org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration.HttpRequestFunction;
-
 @SpringBootApplication
 @Import(HttpRequestFunctionConfiguration.class)
-public class ImageThumbnailDemoApplication {
-	private static Logger logger = LoggerFactory.getLogger(ImageThumbnailDemoApplication.class);
+public class ThumbnailStandaloneApplication {
+	private static Logger logger = LoggerFactory.getLogger(ThumbnailStandaloneApplication.class);
 
 	public static void main(String[] args) {
-
-		SpringApplication.run(ImageThumbnailDemoApplication.class);
+		SpringApplication.run(ThumbnailStandaloneApplication.class, args);
 	}
 
 	@Bean
-	public CommandLineRunner runDemo(HttpRequestFunction httpRequestFunction, ConfigurableApplicationContext context) {
+	public CommandLineRunner runDemo(HttpRequestFunctionConfiguration.HttpRequestFunction httpRequestFunction,
+			ConfigurableApplicationContext context) {
 		return args -> {
-
 			String[] imageUrls = new String[] {
 					"https://i.imgur.com/FQtKSuv.jpeg",
 					"https://i.imgur.com/4Cndaul.jpeg",
@@ -68,59 +58,30 @@ public class ImageThumbnailDemoApplication {
 					"https://i.imgur.com/DhzHsz8.jpg",
 					"https://i.imgur.com/G7t1ZZl.jpg"
 			};
+			ThumbnailProcessor thumbnailProcessor = new ThumbnailProcessor();
 			CountDownLatch countDownLatch = new CountDownLatch(imageUrls.length);
-			ImageScaler imageScaler = new ImageScaler();
 			AtomicInteger index = new AtomicInteger();
 
 			Flux<Message<?>> urls = Flux.fromArray(imageUrls)
 					.map(GenericMessage::new);
 
-			httpRequestFunction.apply(urls).subscribe(image -> {
-				ByteArrayInputStream bis = new ByteArrayInputStream((byte[]) image);
-				File thumbnail = new File(String.format("thumbnail-%d.jpg", index.incrementAndGet()));
-				logger.info("creating thumbnail {}", thumbnail.getAbsolutePath());
-				try {
-					imageScaler.scale(bis, 10, 10, thumbnail, "JPEG");
-				}
-				catch (IOException e) {
-					throw new RuntimeException(e.getMessage(), e);
-				}
-				finally {
-					countDownLatch.countDown();
-				}
-			});
+			httpRequestFunction.apply(urls)
+					.subscribe(image -> {
+						byte[] bytes = thumbnailProcessor.apply((byte[]) image);
+						File thumbnail = new File(String.format("thumbnail-%d.jpg", index.incrementAndGet()));
+						logger.info("creating thumbnail {}", thumbnail.getAbsolutePath());
+						try (FileOutputStream fos = new FileOutputStream(thumbnail)) {
+							fos.write(bytes);
+						}
+						catch (IOException e) {
+							throw new RuntimeException(e.getMessage(), e);
+						}
+						finally {
+							countDownLatch.countDown();
+						}
+					});
 			countDownLatch.await(10, TimeUnit.SECONDS);
 			context.close();
 		};
-
-	}
-
-	static class ImageScaler {
-
-		public void scale(InputStream inputStream, int x_sample, int y_sample, File destination, String formatName)
-				throws IOException {
-
-			ImageInputStream iis = ImageIO.createImageInputStream(inputStream);
-
-			Iterator iter = ImageIO.getImageReaders(iis);
-			if (!iter.hasNext()) {
-				logger.error("Unable to find an image reader");
-				throw new RuntimeException("Image content is invalid.");
-			}
-
-			ImageReader reader = (ImageReader) iter.next();
-
-			ImageReadParam params = reader.getDefaultReadParam();
-
-			reader.setInput(iis, true, true);
-
-			params.setSourceSubsampling(x_sample, y_sample, 0, 0);
-
-			BufferedImage img = reader.read(0, params);
-
-			ImageIO.write(img, formatName, destination);
-
-			inputStream.close();
-		}
 	}
 }

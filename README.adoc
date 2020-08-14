@@ -1,12 +1,13 @@
-= Thumbnail Creation Demo
+= Thumbnail Demo
 
-This demonstrates the use of the Spring https://github.com/spring-cloud/stream-applications/blob/master/functions/function/http-request-function[HttpRequestProcessor function]
-in a standalone Spring Boot Application.
+This project includes the following modules:
 
-The app downloads some images from https://imgur.com and creates a thumbnail of each one.
+* link:image-thumbnail-processor/[image-thumbnail-processor] - A simple function to create thumbnails from JPEG files.
+* link:image-thumbnail-standalone/[image-thumbnail-standalone] - A standalone Spring Boot Demo
+* link:image-thumbnail-sink/[image-thumbnail-sink] - A Spring Cloud Stream Sink Application for Kafka
 
-== Run
+== Build
 
 ```bash
-./mvnw spring-boot:run
+./mvnw clean install
 ```

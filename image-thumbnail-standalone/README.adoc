@@ -1,0 +1,12 @@
+= Thumbnail Standalone
+
+This demonstrates the use of the Spring https://github.com/spring-cloud/stream-applications/blob/master/functions/function/http-request-function[HttpRequestProcessor function]
+in a standalone Spring Boot Application
+
+The app downloads some images from https://imgur.com and uses the link:../image-thumbnail-processor/src/main/java/io/spring/example/image/thumbnail/processor/ThumbnailProcessor.java[ThumbnailProcessor] to create a thumbnail for each image.
+
+== Run
+
+```bash
+./mvnw spring-boot:run
+```
