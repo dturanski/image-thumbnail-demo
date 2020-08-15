@@ -35,6 +35,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import static org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration.*;
+
 @SpringBootApplication
 @Controller
 @Import(HttpRequestFunctionConfiguration.class)
@@ -48,7 +50,7 @@ public class ThumbnailStandaloneApplication {
 	private ThumbnailProcessor thumbnailProcessor = new ThumbnailProcessor();
 
 	@Autowired
-	private HttpRequestFunctionConfiguration.HttpRequestFunction httpRequestFunction;
+	private HttpRequestFunction httpRequestFunction;
 
 	@GetMapping("/thumbnail")
 	public Mono<String> createThumbnail(@RequestParam String url, Model model) {
