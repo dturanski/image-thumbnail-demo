@@ -7,9 +7,3 @@ A plain (no dependencies) Java Function that creates a thumbnail from an JPEG im
 ```
 ./mwnw clean install
 ```
-
-== Test
-
-```bash
-./mvnw clean test
-```
