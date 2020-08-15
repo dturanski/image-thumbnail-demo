@@ -1,5 +1,7 @@
 = Thumbnail Demo
 
+image:img/thumbnail-files.png[]
+
 This project includes the following modules:
 
 * link:image-thumbnail-processor/[image-thumbnail-processor] - A simple function to create thumbnails from JPEG files.
