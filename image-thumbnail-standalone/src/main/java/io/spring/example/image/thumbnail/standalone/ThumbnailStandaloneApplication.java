@@ -16,29 +16,27 @@
 
 package io.spring.example.image.thumbnail.standalone;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Base64;
 
 import io.spring.example.image.thumbnail.processor.ThumbnailProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.messaging.Message;
 import org.springframework.messaging.support.GenericMessage;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @SpringBootApplication
+@Controller
 @Import(HttpRequestFunctionConfiguration.class)
 public class ThumbnailStandaloneApplication {
 	private static Logger logger = LoggerFactory.getLogger(ThumbnailStandaloneApplication.class);
@@ -47,41 +45,22 @@ public class ThumbnailStandaloneApplication {
 		SpringApplication.run(ThumbnailStandaloneApplication.class, args);
 	}
 
-	@Bean
-	public CommandLineRunner runDemo(HttpRequestFunctionConfiguration.HttpRequestFunction httpRequestFunction,
-			ConfigurableApplicationContext context) {
-		return args -> {
-			String[] imageUrls = new String[] {
-					"https://i.imgur.com/FQtKSuv.jpeg",
-					"https://i.imgur.com/4Cndaul.jpeg",
-					"https://i.imgur.com/FCPLS42.jpeg",
-					"https://i.imgur.com/DhzHsz8.jpg",
-					"https://i.imgur.com/G7t1ZZl.jpg"
-			};
-			ThumbnailProcessor thumbnailProcessor = new ThumbnailProcessor();
-			CountDownLatch countDownLatch = new CountDownLatch(imageUrls.length);
-			AtomicInteger index = new AtomicInteger();
+	private ThumbnailProcessor thumbnailProcessor = new ThumbnailProcessor();
 
-			Flux<Message<?>> urls = Flux.fromArray(imageUrls)
-					.map(GenericMessage::new);
+	@Autowired
+	private HttpRequestFunctionConfiguration.HttpRequestFunction httpRequestFunction;
 
-			httpRequestFunction.apply(urls)
-					.subscribe(image -> {
-						byte[] bytes = thumbnailProcessor.apply((byte[]) image);
-						File thumbnail = new File(String.format("thumbnail-%d.jpg", index.incrementAndGet()));
-						logger.info("creating thumbnail {}", thumbnail.getAbsolutePath());
-						try (FileOutputStream fos = new FileOutputStream(thumbnail)) {
-							fos.write(bytes);
-						}
-						catch (IOException e) {
-							throw new RuntimeException(e.getMessage(), e);
-						}
-						finally {
-							countDownLatch.countDown();
-						}
-					});
-			countDownLatch.await(10, TimeUnit.SECONDS);
-			context.close();
-		};
+	@GetMapping("/thumbnail")
+	public Mono<String> createThumbnail(@RequestParam String url, Model model) {
+
+		return httpRequestFunction.apply(Flux.just(new GenericMessage<>(url)))
+				.map(image -> {
+					byte[] thumbnail = thumbnailProcessor.apply((byte[]) image);
+					logger.info("creating thumbnail for {}", url);
+					byte[] encoded = Base64.getEncoder().encode(thumbnail);
+					model.addAttribute("url", url);
+					model.addAttribute("thumb", new String(Base64.getEncoder().encode(thumbnail)));
+					return encoded;
+				}).then(Mono.just("thumbnail"));
 	}
 }

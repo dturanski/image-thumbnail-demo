@@ -10,3 +10,9 @@ See Also link:src/main/resources/application.properties[application.properties].
 == Build
 
 ./mvnw clean install
+
+== Run
+
+file-source | http-request-processor | image-thumbnail-sink
+
+
