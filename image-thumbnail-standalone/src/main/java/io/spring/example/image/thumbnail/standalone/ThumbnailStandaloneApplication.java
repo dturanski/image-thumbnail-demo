@@ -17,6 +17,8 @@
 package io.spring.example.image.thumbnail.standalone;
 
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 import io.spring.example.image.thumbnail.processor.ThumbnailProcessor;
 import org.slf4j.Logger;
@@ -28,14 +30,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.RouterFunctions;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
 
-import static org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration.*;
+import static org.springframework.cloud.fn.http.request.HttpRequestFunctionConfiguration.HttpRequestFunction;
 
 @SpringBootApplication
 @Controller
@@ -52,17 +56,26 @@ public class ThumbnailStandaloneApplication {
 	@Autowired
 	private HttpRequestFunction httpRequestFunction;
 
-	@GetMapping("/thumbnail")
-	public Mono<String> createThumbnail(@RequestParam String url, Model model) {
+	@Bean
+	RouterFunction<?> routes() {
+		return RouterFunctions.route()
+				.GET("/thumbnail", this::createThumbnail)
+				.build();
+	}
 
-		return httpRequestFunction.apply(Flux.just(new GenericMessage<>(url)))
-				.map(image -> {
+	private Mono<ServerResponse> createThumbnail(ServerRequest serverRequest) {
+		String url = serverRequest.queryParam("url").orElseThrow(() -> new RuntimeException("URL required"));
+
+		return Mono.from(httpRequestFunction.apply(Flux.just(new GenericMessage<>(url)))
+				.flatMap(image -> {
+					Map<String, Object> model = new HashMap<>();
 					byte[] thumbnail = thumbnailProcessor.apply((byte[]) image);
 					logger.info("creating thumbnail for {}", url);
-					byte[] encoded = Base64.getEncoder().encode(thumbnail);
-					model.addAttribute("url", url);
-					model.addAttribute("thumb", new String(Base64.getEncoder().encode(thumbnail)));
-					return encoded;
-				}).then(Mono.just("thumbnail"));
+					model.put("url", url);
+					model.put("thumb", new String(Base64.getEncoder().encode(thumbnail)));
+					Mono<ServerResponse> serverResponse = ServerResponse.ok()
+							.render("thumbnail", model);
+					return serverResponse;
+				}));
 	}
 }
